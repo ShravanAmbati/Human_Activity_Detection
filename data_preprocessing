@@ -1,0 +1,89 @@
+import numpy as np
+import csv
+import glob
+import os
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+
+# Updated Parameters for Real-Time Dataset
+window_size = 20  # Adjusted for shorter sequences
+slide_size = 10   # Maintain overlap for better detection
+threshold = 60     # Keep it low to detect activity properly
+
+
+  def dataimport(path1, path2):
+      xx = np.empty([0, window_size, 30], float)
+      yy = np.empty([0, 5], float)
+
+      ### Input Data ###
+      input_csv_files = sorted(glob.glob(path1))
+      for f in input_csv_files:
+          print("input_file_name =", f)
+          data = [[float(elm) for elm in v] for v in csv.reader(open(f, "r"))]
+          tmp1 = np.array(data)
+          x2 = np.empty([0, window_size, 30], float)
+
+          # Data import using sliding window
+          k = 0
+          while k <= (len(tmp1) - window_size):
+              x = np.dstack(np.array(tmp1[k:k+window_size, :30]).T)  # Extract subcarrier data
+              x2 = np.concatenate((x2, x), axis=0)
+              k += slide_size
+
+          xx = np.concatenate((xx, x2), axis=0)
+
+      xx = xx.reshape(len(xx), -1)
+
+      ### Annotation Data ###
+      annotation_csv_files = sorted(glob.glob(path2))
+      for ff in annotation_csv_files:
+          print("annotation_file_name =", ff)
+          ano_data = [[str(elm).strip().lower() for elm in v] for v in csv.reader(open(ff, "r"))]
+          tmp2 = np.array(ano_data).flatten()
+
+          y = np.zeros(((len(tmp2) - window_size) // slide_size + 1, 5))
+          k = 0
+          while k <= (len(tmp2) - window_size):
+              y_pre = tmp2[k:k+window_size]
+              activity_counts = {"fall": 0, "sitdown": 0, "standup": 0, "walk":0}
+              for j in range(window_size):
+                  label = y_pre[j]
+                  if label in activity_counts:
+                      activity_counts[label] += 1
+
+              for i, activity in enumerate(["fall", "sitdown", "standup", "walk"]):
+                  if activity_counts[activity] > (window_size * threshold / 100):
+                      y[k // slide_size, i] = 1
+
+              if sum(y[k // slide_size, :-1]) == 0:
+                  y[k // slide_size, 4] = 1
+
+              k += slide_size
+
+          yy = np.concatenate((yy, y), axis=0)
+
+      print(xx.shape, yy.shape)
+      return xx, yy
+
+
+#### Main ####
+if not os.path.exists("/content/"):
+    os.makedirs("/content/")
+
+for i, label in enumerate(["fall", "sitdown", "standup", "walk"]):
+    filepath1 = f"/content/{label}.csv"
+    filepath2 = f"/content/annotation_{label}.csv"
+    outputfilename1 = f"/content/xx_{window_size}_{threshold}_{label}.csv"
+    outputfilename2 = f"/content/yy_{window_size}_{threshold}_{label}.csv"
+
+    x, y = dataimport(filepath1, filepath2)
+    with open(outputfilename1, "w") as f:
+        writer = csv.writer(f, lineterminator="\n")
+        writer.writerows(x)
+    with open(outputfilename2, "w") as f:
+        writer = csv.writer(f, lineterminator="\n")
+        writer.writerows(y)
+
+    print(f"{label} finish!")
