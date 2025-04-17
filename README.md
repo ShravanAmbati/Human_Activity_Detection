@@ -22,7 +22,7 @@ Here there are two python codes:
    𝑥 𝑥 xx → (1998, 600)
    𝑦 𝑦 yy → (1998, 3)
 
-3) Creating LSTM code:
+2) Building LSTM code:
 
    Here we create the LSTM model with the environmental parameters:
      learning_rate = 0.0001
@@ -34,6 +34,11 @@ Here there are two python codes:
      activities = ["fall", "sitdown", "standup", "walk"]
      n_classes = len(activities) + 1  # Output classes (one-hot encoded, +1 for "noactivity")
      k_folds = 5
+
+3) Inferencing Code:
+   
+      This code deals with the prediction of activity for each window and if consequently fall occurs 5 times then the activity is "Fall".
+
 
 
 
@@ -58,7 +63,7 @@ There are 3 more branches other than main branch:
      b) standup.csv
      c) walk.csv
    
-4) LSTM Model:
+3) LSTM Model:
 
    This contains the .h5 file which is a trained model with accuracy 93.6 %
   
