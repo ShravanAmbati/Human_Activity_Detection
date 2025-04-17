@@ -1,0 +1,81 @@
+# ✅ STEP 1: Upload your trained model (.h5) and real-time data file (.csv)
+from google.colab import files
+print("📤 Upload your trained model file (e.g., final_model.h5)...")
+uploaded_model = files.upload()
+model_filename = list(uploaded_model.keys())[0]
+
+print("📤 Upload your real-time CSV file (e.g., realtime_fall.csv)...")
+uploaded_data = files.upload()
+csv_filename = list(uploaded_data.keys())[0]
+
+# ✅ STEP 2: Load the model
+from tensorflow.keras.models import load_model
+final_model = load_model(model_filename)
+print(f"✅ Model '{model_filename}' loaded successfully!")
+
+# ✅ STEP 3: Preprocess the real-time test data
+import pandas as pd
+import numpy as np
+
+# Parameters (should match training config)
+window_size = 20
+slide_size = 10
+activity_labels = ["fall", "sitdown", "standup", "walk", "noactivity"]
+
+def preprocess_realtime_file(csv_path):
+    data = pd.read_csv(csv_path, header=None).values  # shape (e.g., 300, 30)
+    windows = []
+    k = 0
+    while k <= (len(data) - window_size):
+        x = np.dstack(data[k:k+window_size, :30].T)  # shape (1, 20, 30)
+        windows.append(x[0])
+        k += slide_size
+    x_realtime = np.array(windows)  # shape: (num_windows, 20, 30)
+    return x_realtime
+
+# ✅ STEP 4: Predict activity on real-time data
+x_realtime = preprocess_realtime_file(csv_filename)
+y_pred_probs = final_model.predict(x_realtime)
+y_pred_labels = np.argmax(y_pred_probs, axis=1)
+predicted_activities = [activity_labels[label] for label in y_pred_labels]
+
+# ✅ STEP 5: Detect fall using 5+ consecutive 'fall' predictions
+consec_falls = 0
+fall_threshold = 5
+fall_detected = False
+
+print("\n✅ Window-by-Window Predictions:")
+for i, activity in enumerate(predicted_activities):
+    print(f"Window {i+1}: Predicted activity - {activity}")
+    if activity == "fall":
+        consec_falls += 1
+        if consec_falls >= fall_threshold:
+            fall_detected = True
+    else:
+        consec_falls = 0
+
+# ✅ STEP 6: Send Blynk Event Notification (only if fall is confirmed)
+import requests
+
+def send_blynk_alert(auth_token, event_code, description="Fall detected from ML model"):
+    url = f"https://blynk.cloud/external/api/logEvent?token={auth_token}&event={event_code}&description={description}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        print("✅ Blynk event triggered successfully!")
+    '''else:
+        print("❌ Failed to trigger Blynk event.")
+        print("🔍 Response:", response.text)
+        print("📛 Status Code:", response.status_code)'''
+
+
+# Replace with your actual Blynk token and event code
+BLYNK_AUTH_TOKEN = "yjC65rakz4kRquJ2-Hbbsw4ucdkypgbT"
+BLYNK_EVENT_CODE = "fall_occured"
+
+if fall_detected:
+    print("\n🚨 ALERT: Fall detected based on consecutive predictions!")
+    send_blynk_alert(BLYNK_AUTH_TOKEN, BLYNK_EVENT_CODE)
+else:
+    print("\n✅ No fall detected based on consecutive predictions.")
+
+print("\n✅ Finished processing real-time data.")
