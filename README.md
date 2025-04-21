@@ -66,4 +66,8 @@ There are 3 more branches other than main branch:
 3) LSTM Model:
 
    This contains the .h5 file which is a trained model with accuracy 93.6 %
-  
+
+
+
+
+![sensors-25-00918-g001-min](https://github.com/user-attachments/assets/0aba08cd-5bea-439d-9cd0-d4e44ba260f7)
